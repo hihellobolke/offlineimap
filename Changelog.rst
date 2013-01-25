@@ -6,6 +6,8 @@ ChangeLog
 
 WIP (add new stuff for the next release)
 ========================================
+* Kinda added a 'neverdelete' option to allow a reposoitory as 
+  an archive repository
 
 OfflineIMAP v6.5.5-rc1 (2012-09-05)
 ===================================
