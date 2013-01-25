@@ -522,9 +522,17 @@ class BaseFolder(object):
         :param dstfolder: Folderinstance to sync the msgs to.
         :param statusfolder: LocalStatus instance to sync against.
         """
-        passes = [('copying messages'       , self.syncmessagesto_copy),
-                  ('deleting messages'      , self.syncmessagesto_delete),
-                  ('syncing flags'          , self.syncmessagesto_flags)]
+        
+        dstrepo = dstfolder.getrepository()
+        passes = []
+        if dstrepo.getconfboolean('neverdelete', False):
+            self.ui.info("*** Will not be deleting messages, as neverdelete is set in '%s' ***" % self.accountname)
+            passes = [('copying messages'       , self.syncmessagesto_copy),
+                       ('syncing flags'          , self.syncmessagesto_flags)]
+        else:
+            passes = [('copying messages'       , self.syncmessagesto_copy),
+                      ('deleting messages'      , self.syncmessagesto_delete),
+                      ('syncing flags'          , self.syncmessagesto_flags)]
 
         for (passdesc, action) in passes:
             # bail out on CTRL-C or SIGTERM
