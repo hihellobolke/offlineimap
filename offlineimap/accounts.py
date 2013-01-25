@@ -301,7 +301,8 @@ class SyncableAccount(Account):
             # folder delimiter etc)
             remoterepos.getfolders()
             localrepos.getfolders()
-
+            
+            
             remoterepos.sync_folder_structure(localrepos, statusrepos)
             # replicate the folderstructure between REMOTE to LOCAL
             if not localrepos.getconfboolean('readonly', False):
@@ -441,22 +442,35 @@ def syncfolder(account, remotefolder, quick):
                              remotefolder.getmessagecount())
 
         # Synchronize remote changes.
-        if not localrepos.getconfboolean('readonly', False):
         if not localrepos.getconfboolean('readonly', False) or not remoterepos.getconfboolean('neverdelete', False):
             ui.syncingmessages(remoterepos, remotefolder, localrepos, localfolder)
             remotefolder.syncmessagesto(localfolder, statusfolder)
         else:
-            ui.debug('imap', "Not syncing to read-only repository '%s'" \
+            if localrepos.getconfboolean('readonly', False):
+                ui.debug('imap', "Not syncing to read-only repository '%s'" \
                          % localrepos.getname())
+            else:
+                ui.debug('imap', "Not syncing to '%s' due to neverdelete set for '%s'" \
+                         % (localrepos.getname(), remoterepos.getname()))
+                ui.info("Not syncing to '%s' due to neverdelete set for '%s'" \
+                         % (localrepos.getname(), remoterepos.getname()))
 
         # Synchronize local changes
-        if not remoterepos.getconfboolean('readonly', False):
+        # neverdelete 
+        if not remoterepos.getconfboolean('readonly', False) or not localrepos.getconfboolean('neverdelete', False):
             ui.syncingmessages(localrepos, localfolder, remoterepos, remotefolder)
             localfolder.syncmessagesto(remotefolder, statusfolder)
         else:
-            ui.debug('', "Not syncing to read-only repository '%s'" \
-                         % remoterepos.getname())
-
+            if remoterepos.getconfboolean('readonly', False):
+                ui.debug('', "Not syncing to read-only repository '%s'" \
+                             % remoterepos.getname())
+            if  localrepos.getconfboolean('neverdelete', False):
+                ui.debug('', "Not syncing to repository '%s' due to neverdelete set for '%s'" \
+                             % (remoterepos.getname(), localrepos.getname()))
+                ui.info("Not syncing to repository '%s' due to neverdelete set for '%s'" \
+                             % (remoterepos.getname(), localrepos.getname()))
+                #
+        
         statusfolder.save()
         localrepos.restore_atime()
     except (KeyboardInterrupt, SystemExit):
