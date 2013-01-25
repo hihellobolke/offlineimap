@@ -442,6 +442,7 @@ def syncfolder(account, remotefolder, quick):
 
         # Synchronize remote changes.
         if not localrepos.getconfboolean('readonly', False):
+        if not localrepos.getconfboolean('readonly', False) or not remoterepos.getconfboolean('neverdelete', False):
             ui.syncingmessages(remoterepos, remotefolder, localrepos, localfolder)
             remotefolder.syncmessagesto(localfolder, statusfolder)
         else:
