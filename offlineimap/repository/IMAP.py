@@ -116,7 +116,7 @@ class IMAPRepository(BaseRepository):
                                    "'%s' specified." % self,
                                OfflineImapError.ERROR.REPO)
 
-    def getnoverify(self):
+    def getnoverifycert(self):
         """Return if cert verification should be done or not
 
         :return: boolean"""

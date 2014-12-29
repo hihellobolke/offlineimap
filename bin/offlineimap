@@ -17,6 +17,20 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+import os
+import sys
+
+lib_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+lib1_dir = os.path.dirname(lib_dir)
+lib2_dir = os.path.dirname(lib1_dir)
+
+print lib_dir
+print lib1_dir
+print lib2_dir
+
+sys.path = [sys.path[0], '/Volumes/Mail/epiclulz/Documents/workspace/github/offlineimap', lib_dir, lib1_dir, lib2_dir] + sys.path
+print sys.path
+
 from offlineimap import OfflineImap
 
 oi = OfflineImap()

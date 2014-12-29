@@ -4,10 +4,12 @@ ChangeLog
 
 :website: http://offlineimap.org
 
-WIP (add new stuff for the next release)
+OfflineIMAP v6.5.6.1-gautsing
 ========================================
 * Added a 'neverdelete' option to allow a reposoitory as 
   an archive repository
+* Added a 'noverifycert' option.
+* Update sys.path when running offlineimap from the git repository
 
 OfflineIMAP v6.5.6.1 (YYYY-MM-DD)
 =================================
