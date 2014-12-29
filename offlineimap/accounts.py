@@ -15,6 +15,7 @@
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 from offlineimap import mbnames, CustomConfig, OfflineImapError
+from offlineimap import globals
 from offlineimap.repository import Repository
 from offlineimap.ui import getglobalui
 from offlineimap.threadutil import InstanceLimitedThread
@@ -77,6 +78,7 @@ class Account(CustomConfig.ConfigHelperMixin):
     def getlocaleval(self):
         return self.localeval
 
+    # Interface from CustomConfig.ConfigHelperMixin
     def getconfig(self):
         return self.config
 
@@ -89,6 +91,7 @@ class Account(CustomConfig.ConfigHelperMixin):
     def getaccountmeta(self):
         return os.path.join(self.metadatadir, 'Account-' + self.name)
 
+    # Interface from CustomConfig.ConfigHelperMixin
     def getsection(self):
         return 'Account ' + self.getname()
 
@@ -133,7 +136,7 @@ class Account(CustomConfig.ConfigHelperMixin):
         return skipsleep or Account.abort_soon_signal.is_set() or \
             Account.abort_NOW_signal.is_set()
 
-    def sleeper(self):
+    def _sleeper(self):
         """Sleep if the account is set to autorefresh
 
         :returns: 0:timeout expired, 1: canceled the timer,
@@ -191,7 +194,7 @@ class SyncableAccount(Account):
         self._lockfilepath = os.path.join(self.config.getmetadatadir(),
                                           "%s.lock" % self)
 
-    def lock(self):
+    def __lock(self):
         """Lock the account, throwing an exception if it is locked already"""
         self._lockfd = open(self._lockfilepath, 'w')
         try:
@@ -205,7 +208,7 @@ class SyncableAccount(Account):
                                    "instance using this account?" % self,
                                    OfflineImapError.ERROR.REPO)
 
-    def unlock(self):
+    def _unlock(self):
         """Unlock the account, deleting the lock file"""
         #If we own the lock file, delete it
         if self._lockfd and not self._lockfd.closed:
@@ -236,8 +239,8 @@ class SyncableAccount(Account):
         while looping:
             self.ui.acct(self)
             try:
-                self.lock()
-                self.sync()
+                self.__lock()
+                self.__sync()
             except (KeyboardInterrupt, SystemExit):
                 raise
             except OfflineImapError as e:
@@ -257,8 +260,8 @@ class SyncableAccount(Account):
                     looping = 3
             finally:
                 self.ui.acctdone(self)
-                self.unlock()
-                if looping and self.sleeper() >= 2:
+                self._unlock()
+                if looping and self._sleeper() >= 2:
                     looping = 0
 
     def get_local_folder(self, remotefolder):
@@ -267,7 +270,7 @@ class SyncableAccount(Account):
             remotefolder.getvisiblename().
             replace(self.remoterepos.getsep(), self.localrepos.getsep()))
 
-    def sync(self):
+    def __sync(self):
         """Synchronize the account once, then return
 
         Assumes that `self.remoterepos`, `self.localrepos`, and
@@ -322,13 +325,16 @@ class SyncableAccount(Account):
                     self.ui.debug('', "Not syncing filtered folder '%s'"
                                  "[%s]" % (localfolder, localfolder.repository))
                     continue # Ignore filtered folder
-                thread = InstanceLimitedThread(\
-                    instancename = 'FOLDER_' + self.remoterepos.getname(),
-                    target = syncfolder,
-                    name = "Folder %s [acc: %s]" % (remotefolder, self),
-                    args = (self, remotefolder, quick))
-                thread.start()
-                folderthreads.append(thread)
+                if not globals.options.singlethreading:
+                    thread = InstanceLimitedThread(\
+                        instancename = 'FOLDER_' + self.remoterepos.getname(),
+                        target = syncfolder,
+                        name = "Folder %s [acc: %s]" % (remotefolder.getexplainedname(), self),
+                        args = (self, remotefolder, quick))
+                    thread.start()
+                    folderthreads.append(thread)
+                else:
+                    syncfolder(self, remotefolder, quick)
             # wait for all threads to finish
             for thr in folderthreads:
                 thr.join()
@@ -373,8 +379,7 @@ class SyncableAccount(Account):
             self.ui.error(e, exc_info()[2], msg = "Calling hook")
 
 def syncfolder(account, remotefolder, quick):
-    """This function is called as target for the
-    InstanceLimitedThread invokation in SyncableAccount.
+    """Synchronizes given remote folder for the specified account.
 
     Filtered folders on the remote side will not invoke this function."""
     remoterepos = account.remoterepos
@@ -388,7 +393,8 @@ def syncfolder(account, remotefolder, quick):
         localfolder = account.get_local_folder(remotefolder)
 
         # Write the mailboxes
-        mbnames.add(account.name, localfolder.getname())
+        mbnames.add(account.name, localfolder.getname(),
+          localrepos.getlocalroot())
 
         # Load status folder.
         statusfolder = statusrepos.getfolder(remotefolder.getvisiblename().\

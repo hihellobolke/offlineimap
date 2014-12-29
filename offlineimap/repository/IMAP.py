@@ -19,6 +19,7 @@ from offlineimap.repository.Base import BaseRepository
 from offlineimap import folder, imaputil, imapserver, OfflineImapError
 from offlineimap.folder.UIDMaps import MappedIMAPFolder
 from offlineimap.threadutil import ExitNotifyThread
+from offlineimap.utils.distro import get_os_sslcertfile
 from threading import Event
 import os
 from sys import exc_info
@@ -115,6 +116,43 @@ class IMAPRepository(BaseRepository):
                                    "'%s' specified." % self,
                                OfflineImapError.ERROR.REPO)
 
+    def getnoverify(self):
+        """Return if cert verification should be done or not
+
+        :return: boolean"""
+        return self.getconfboolean('noverifycert', 1)
+
+    def get_remote_identity(self):
+        """
+        Remote identity is used for certain SASL mechanisms
+        (currently -- PLAIN) to inform server about the ID
+        we want to authorize as instead of our login name.
+
+        """
+
+        return self.getconf('remote_identity', default=None)
+
+    def get_auth_mechanisms(self):
+        supported = ["GSSAPI", "CRAM-MD5", "PLAIN", "LOGIN"]
+        # Mechanisms are ranged from the strongest to the
+        # weakest ones.
+        # TODO: we need DIGEST-MD5, it must come before CRAM-MD5
+        # TODO: due to the chosen-plaintext resistance.
+        default = ["GSSAPI", "CRAM-MD5", "PLAIN", "LOGIN"]
+
+        mechs = self.getconflist('auth_mechanisms', r',\s*',
+          default)
+
+        for m in mechs:
+            if m not in supported:
+                raise OfflineImapError("Repository %s: " % self + \
+                  "unknown authentication mechanism '%s'" % m,
+                  OfflineImapError.ERROR.REPO)
+
+        self.ui.debug('imap', "Using authentication mechanisms %s" % mechs)
+        return mechs
+
+
     def getuser(self):
         user = None
         localeval = self.localeval
@@ -148,35 +186,59 @@ class IMAPRepository(BaseRepository):
 
 
     def getport(self):
+        port = None
+
+        if self.config.has_option(self.getsection(), 'remoteporteval'):
+            port = self.getconf('remoteporteval')
+        if port != None:
+            return self.localeval.eval(port)
+
         return self.getconfint('remoteport', None)
 
     def getssl(self):
         return self.getconfboolean('ssl', 0)
 
     def getsslclientcert(self):
-        return self.getconf('sslclientcert', None)
+        xforms = [os.path.expanduser, os.path.expandvars, os.path.abspath]
+        return self.getconf_xform('sslclientcert', xforms, None)
 
     def getsslclientkey(self):
-        return self.getconf('sslclientkey', None)
+        xforms = [os.path.expanduser, os.path.expandvars, os.path.abspath]
+        return self.getconf_xform('sslclientkey', xforms, None)
 
     def getsslcacertfile(self):
         """Return the absolute path of the CA certfile to use, if any"""
-        cacertfile = self.getconf('sslcacertfile', None)
+        xforms = [os.path.expanduser, os.path.expandvars, os.path.abspath]
+        cacertfile = self.getconf_xform('sslcacertfile', xforms,
+          get_os_sslcertfile())
         if cacertfile is None:
             return None
-        cacertfile = os.path.expanduser(cacertfile)
-        cacertfile = os.path.abspath(cacertfile)
         if not os.path.isfile(cacertfile):
             raise SyntaxWarning("CA certfile for repository '%s' could "
                                 "not be found. No such file: '%s'" \
                                 % (self.name, cacertfile))
         return cacertfile
 
+    def getsslversion(self):
+        return self.getconf('ssl_version', None)
+
     def get_ssl_fingerprint(self):
-        return self.getconf('cert_fingerprint', None)
+        """
+        Return array of possible certificate fingerprints.
+
+        Configuration item cert_fingerprint can contain multiple
+        comma-separated fingerprints in hex form.
+
+        """
+
+        value = self.getconf('cert_fingerprint', "")
+        return [f.strip().lower() for f in value.split(',') if f]
 
     def getpreauthtunnel(self):
         return self.getconf('preauthtunnel', None)
+
+    def gettransporttunnel(self):
+        return self.getconf('transporttunnel', None)
 
     def getreference(self):
         return self.getconf('reference', '')
@@ -320,7 +382,7 @@ class IMAPRepository(BaseRepository):
                     def __init__(self, obj, *args):
                         self.obj = obj
                     def __cmp__(self, other):
-                        return mycmp(self.obj, other.obj)
+                        return mycmp(self.obj.getvisiblename(), other.obj.getvisiblename())
                 return K
             retval.sort(key=cmp2key(self.foldersort))
 
@@ -352,7 +414,7 @@ class IMAPRepository(BaseRepository):
                                        OfflineImapError.ERROR.FOLDER)
         finally:
             self.imapserver.releaseconnection(imapobj)
-            
+
 class MappedIMAPRepository(IMAPRepository):
     def getfoldertype(self):
         return MappedIMAPFolder

@@ -6,26 +6,135 @@ ChangeLog
 
 WIP (add new stuff for the next release)
 ========================================
-* Kinda added a 'neverdelete' option to allow a reposoitory as 
+* Added a 'neverdelete' option to allow a reposoitory as 
   an archive repository
 
-OfflineIMAP v6.5.5-rc1 (2012-09-05)
+OfflineIMAP v6.5.6.1 (YYYY-MM-DD)
+=================================
+
+* Expand environment variables in the following
+  configuration items:
+  - general.pythonfile;
+  - general.metadata;
+  - mbnames.filename;
+  - Repository.localfolders.
+  - Repository.sslcacertfile.
+  Make tilde and environment variable expansion in the following
+  configuration items:
+  - Repository.sslclientcert;
+  - Repository.sslclientkey.
+
+* Updated bundled imaplib2 to 2.37:
+  - add missing idle_lock in _handler()
+
+* Added default CA bundle location for OpenBSD
+  (GitHub pull #120) and DragonFlyBSD.
+
+* Added OpenSSL exception clause to our main GPL to allow
+  people to link with OpenSSL in run-time.  It is needed
+  at least for Debian, see
+    https://lists.debian.org/debian-legal/2002/10/msg00113.html
+  for details.
+
+* Fix warning-level message processing by MachineUI
+  (GitHub pull #64, GitHub pull #118).
+
+* Support default CA bundle locations for a couple of
+  known Unix systems (Michael Vogt, GutHub pull #19)
+
+* Create SQLite database directory if it doesn't exist
+  yet; warn if path is not a directory (Nick Farrell,
+  GutHub pull #102)
+
+* Fix mangled message headers for servers without UIDPLUS:
+  X-OfflineIMAP was added with preceeding '\n' instead of
+  '\r\n' just before message was uploaded to the IMAP server.
+
+* Add missing version bump for 6.5.6 (it was released with
+  6.5.5 in setup.py and other places).
+
+* Various fixes in documentation.
+
+* Fix unbounded recursion during flag update (Josh Berry).
+
+
+OfflineIMAP v6.5.6 (2014-05-14)
+===============================
+
+* Fix IDLE mode regression (it didn't worked) introduced
+  after v6.5.5 (pointy hat goes to Eygene Ryabinkin, kudos --
+  to Tomasz Żok)
+
+
+OfflineIMAP v6.5.6-RC1 (2014-05-14)
 ===================================
 
-* Bump version number
+* Add knob to invoke folderfilter dynamically on each sync (GitHub#73)
+* Add knob to apply compression to IMAP connections (Abdó Roig-Maranges)
+* Add knob to filter some headers before uploading message
+  to IMAP server (Abdó Roig-Maranges)
+* Allow to sync GMail labels and implement GmailMaildir repository that
+  adds mechanics to change message labels (Abdó Roig-Maranges)
+* Allow to migrate status data across differend backends
+  (Abdó Roig-Maranges)
+* Support XDG Base Directory Specification
+  (if $XDG_CONFIG_HOME/offlineimap/config exists, use it as the
+  default configuration path; ~/.offlineimaprc is still tried after
+  XDG location) (GitHub#32)
+* Allow multiple certificate fingerprints to be specified inside
+  'cert_fingerprint'
 
-OfflineIMAP v6.5.5-rc1 (2012-09-05)
-===================================
 
+OfflineIMAP v6.5.5 (2013-10-07)
+===============================
+
+* Avoid lockups for IMAP synchronizations running with the
+  "-1" command-line switch (X-Ryl669 <boite.pour.spam@gmail.com>)
+* Dump stacktrace for all threads on SIGQUIT: ease debugging
+  of threading and other issues
+* SIGHUP is now handled as the termination notification rather than
+  the signal to reread the configuration (Dmitrijs Ledkovs)
+* Honor the timezone of emails (Tobias Thierer)
+* Allow mbnames output to be sorted by a custom sort key by specifying
+  a 'sort_keyfunc' function in the [mbnames] section of the config.
+* Support SASL PLAIN authentication method.  (Andreas Mack)
+* Support transport-only tunnels that requre full IMAP authentication.
+  (Steve Purcell)
+* Make the list of authentication mechanisms to be configurable.
+  (Andreas Mack)
+* Allow to set message access and modification timestamps based
+  on the "Date" header of the message itself.  (Cyril Russo)
+* "peritem" format string for [mbnames] got new expansion key
+  "localfolders" that corresponds to the same parameter of the
+  local repository for the account being processed.
+* [regression] pass folder names to the foldersort function,
+  revert the documented behaviour
+* Fix handling of zero-sized IMAP data items (GitHub#15).
+* Updated bundled imaplib2 to 2.35:
+  - fix for Gmail sending a BYE response after reading >100 messages
+    in a session;
+  - includes fix for GitHub#15: patch was accepted upstream.
+* Updated bundled imaplib2 to 2.36: it includes support for SSL
+  version override that was integrated into our code before,
+  no other changes.
+* Fixed parsing of quoted strings in IMAP responses: strings like "\\"
+  were treated as having \" as the escaped quote, rather than treating
+  it as the quoted escaped backslash (GitHub#53).
+* Execute pre/post-sync hooks during synchronizations
+  toggled by IMAP IDLE message processing. (maxgerer@gmail.com)
+* Catch unsuccessful local mail uploads when IMAP server
+  responds with "NO" status; that resulted in a loss of such
+  local messages. (Adam Spiers)
 * Don't create folders if readonly is enabled.
-* Learn to deal with readonly folders to properly detect this condition and act
-  accordingly.  One example is Gmail's "Chats" folder that is read-only,
-  but contains logs of the quick chats. (E. Ryabinkin)
+* Learn to deal with readonly folders to properly detect this
+  condition and act accordingly.  One example is Gmail's "Chats"
+  folder that is read-only, but contains logs of the quick chats. (E.
+  Ryabinkin)
 * Fix str.format() calls for Python 2.6 (D. Logie)
 * Remove APPENDUID hack, previously introduced to fix Gmail, no longer
   necessary, it might have been breaking things. (J. Wiegley)
-* Improve regex that could lead to 'NoneType' object has no attribute 'group'
-  (D. Franke)
+* Improve regex that could lead to 'NoneType' object has no attribute
+  'group' (D. Franke)
 * Improved error throwing on repository misconfiguration
 
 OfflineIMAP v6.5.4 (2012-06-02)
@@ -116,7 +225,7 @@ OfflineIMAP v6.5.2 (2012-01-17)
 
 * Some sanity checks and improved error messages.
 
-* Revert 6.5.1.1 change to use public imaplib2 function, it was reported to 
+* Revert 6.5.1.1 change to use public imaplib2 function, it was reported to
   not always work.
 
 * Don't fail when ~/netrc is not readable by us.
@@ -274,7 +383,7 @@ Changes
 * Refresh server capabilities after login, so we know that Gmail
   supports UIDPLUS (it only announces that after login, not
   before). This prevents us from adding custom headers to Gmail uploads.
-  
+
 Bug Fixes
 ---------
 
@@ -332,7 +441,7 @@ New Features
 * When a message upload/download fails, we do not abort the whole folder
   synchronization, but only skip that message, informing the user at the
   end of the sync run.
- 
+
 * If you connect via ssl and 'cert_fingerprint' is configured, we check
   that the server certificate is actually known and identical by
   comparing the stored sha1 fingerprint with the current one.
@@ -431,7 +540,7 @@ Notes
 -----
 
 This was a very active rc1 and we could expect a lot of new fixes for the next
-release. 
+release.
 
 The most important fix is about a bug that could lead to data loss. Find more
 information about his bug here:
@@ -582,7 +691,7 @@ I'd like to thank reporters who involved in this cycle:
   - Pan Tsu
   - Vincent Beffara
   - Will Styler
-  
+
 (my apologies if I forget somebody) ...and all active developers, of course!
 
 The imaplib2 migration looks to go the right way to be definetly released but

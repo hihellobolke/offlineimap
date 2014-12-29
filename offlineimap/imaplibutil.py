@@ -31,7 +31,7 @@ from offlineimap.imaplib2 import IMAP4, IMAP4_SSL, zlib, IMAP4_PORT, InternalDat
 
 
 class UsefulIMAPMixIn(object):
-    def getselectedfolder(self):
+    def __getselectedfolder(self):
         if self.state == 'SELECTED':
             return self.mailbox
         return None
@@ -41,7 +41,7 @@ class UsefulIMAPMixIn(object):
 
         :returns: 'OK' on success, nothing if the folder was already
         selected or raises an :exc:`OfflineImapError`"""
-        if self.getselectedfolder() == mailbox and self.is_readonly == readonly \
+        if self.__getselectedfolder() == mailbox and self.is_readonly == readonly \
                 and not force:
             # No change; return.
             return
@@ -66,6 +66,7 @@ class UsefulIMAPMixIn(object):
             raise OfflineImapError(errstr, severity)
         return result
 
+    # Overrides private function from IMAP4 (@imaplib2)
     def _mesg(self, s, tn=None, secs=None):
         new_mesg(self, s, tn, secs)
 
@@ -140,21 +141,28 @@ class WrappedIMAP4_SSL(UsefulIMAPMixIn, IMAP4_SSL):
     """Improved version of imaplib.IMAP4_SSL overriding select()"""
     def __init__(self, *args, **kwargs):
         self._fingerprint = kwargs.get('fingerprint', None)
+        if type(self._fingerprint) != type([]):
+            self._fingerprint = [self._fingerprint]
         if 'fingerprint' in kwargs:
             del kwargs['fingerprint']
         super(WrappedIMAP4_SSL, self).__init__(*args, **kwargs)
 
     def open(self, host=None, port=None):
+        if not self.ca_certs and not self._fingerprint:
+            raise OfflineImapError("No CA certificates " + \
+              "and no server fingerprints configured.  " + \
+              "You must configure at least something, otherwise " + \
+              "having SSL helps nothing.", OfflineImapError.ERROR.REPO)
         super(WrappedIMAP4_SSL, self).open(host, port)
-        if (self._fingerprint or not self.ca_certs):
+        if self._fingerprint:
             # compare fingerprints
             fingerprint = sha1(self.sock.getpeercert(True)).hexdigest()
-            if fingerprint != self._fingerprint:
-                raise OfflineImapError("Server SSL fingerprint '%s' for hostnam"
-                      "e '%s' does not match configured fingerprint. Please ver"
-                      "ify and set 'cert_fingerprint' accordingly if not set ye"
-                      "t." % (fingerprint, host),
-                                       OfflineImapError.ERROR.REPO)
+            if fingerprint not in self._fingerprint:
+                raise OfflineImapError("Server SSL fingerprint '%s' " % fingerprint + \
+                      "for hostname '%s' " % host + \
+                      "does not match configured fingerprint(s) %s.  " % self._fingerprint + \
+                      "Please verify and set 'cert_fingerprint' accordingly " + \
+                      "if not set yet.", OfflineImapError.ERROR.REPO)
 
 
 class WrappedIMAP4(UsefulIMAPMixIn, IMAP4):

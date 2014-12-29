@@ -40,7 +40,7 @@ Most configuration is done via the configuration file.  However, any setting can
 
 OfflineImap is well suited to be frequently invoked by cron jobs, or can run in daemon mode to periodically check your email (however, it will exit in some error situations).
 
-The documentation is included in the git repository and can be created by 
+The documentation is included in the git repository and can be created by
 issueing `make dev-doc` in the `doc` folder (python-sphinx required), or it can
 be viewed online at http://docs.offlineimap.org.
 
@@ -62,6 +62,9 @@ also try.  It's useful if you want to get started with the most basic feature
 set, and you can read about other features later with `offlineimap.conf`.
 
 Check out the `Use Cases`_ section for some example configurations.
+
+If you want to be XDG-compatible, you can put your configuration file into
+`$XDG_CONFIG_HOME/offlineimap/config`.
 
 
 OPTIONS
@@ -219,7 +222,7 @@ achieve this.
     order to use this. This will save you plenty of disk activity. Do
     note that the sqlite backend is still considered experimental as it
     has only been included recently (although a loss of your status
-    cache should not be a tragedy as that file can be rebuild
+    cache should not be a tragedy as that file can be rebuilt
     automatically)
 
  4) Use quick sync. A regular sync will request all flags and all UIDs
@@ -308,7 +311,8 @@ SAFE CONNECTION GUARANTEEING THE AUTHENTICITY OF YOUR IMAP SERVER!
 UNIX Signals
 ============
 
-OfflineImap listens to the unix signals SIGUSR1 and SIGUSR2.
+OfflineImap listens to the unix signals SIGUSR1, SIGUSR2, SIGTERM,
+SIGINT, SIGHUP, SIGQUIT:
 
 If sent a SIGUSR1 it will abort any current (or next future) sleep of all
 accounts that are configured to "autorefresh". In effect, this will trigger a
@@ -318,6 +322,15 @@ If sent a SIGUSR2, it will stop "autorefresh mode" for all accounts. That is,
 accounts will abort any current sleep and will exit after a currently running
 synchronization has finished. This signal can be used to gracefully exit out of
 a running offlineimap "daemon".
+
+SIGTERM, SIGINT, SIGHUP are all treated to gracefully terminate as
+soon as possible. This means it will finish syncing the current folder
+in each account, close keep alive connections, remove locks on the
+accounts and exit. It may take up to 10 seconds, if autorefresh option
+is used.
+
+SIGQUIT dumps stack traces for all threads and tries to dump process
+core.
 
 Folder filtering and nametrans
 ==============================
@@ -410,7 +423,7 @@ This is an example of a setup where "TheOtherImap" requires all folders to be un
     # The below will put all GMAIL folders as sub-folders of the 'local' INBOX,
     # assuming that your path separator on 'local' is a dot.
     nametrans = lambda x: 'INBOX.' + x
-    
+
     [Repository TheOtherImap]
     #This is the 'local' repository
     type = IMAP
@@ -418,6 +431,43 @@ This is an example of a setup where "TheOtherImap" requires all folders to be un
     remotepass = XXX
     remoteuser = XXX
     #Do not use nametrans here.
+
+
+Sync from Gmail to a local Maildir with labels
+----------------------------------------------
+
+This is an example of a setup where GMail gets synced with a local Maildir.
+It also keeps track of GMail labels, that get embedded into the messages
+under the header configured in labelsheader, and syncs them back and forth
+the same way as flags.
+The header used for the labels may need to be set according to the email
+client used.
+Some choices that may be recognized by email clients are `X-Keywords` or `X-Labels`.
+
+The first time OfflineIMAP runs with synclabels enabled on a large repository it
+may take some time as the labels are read / embedded on every message.
+Afterwards local label changes are detected using modification times, which is
+much faster::
+
+    [Account Gmail-mine]
+    localrepository = Gmaillocal-mine
+    remoterepository = Gmailserver-mine
+    synclabels = yes
+    # This header is where labels go.  Usually you will be fine
+    # with default value, but in case you want it different,
+    # here we go:
+    labelsheader = X-GMail-Keywords
+
+    [Repository Gmailserver-mine]
+    #This is the remote repository
+    type = Gmail
+    remotepass = XXX
+    remoteuser = XXX
+
+    [Repository Gmaillocal-mine]
+    #This is the 'local' repository
+    type = GmailMaildir
+
 
 Selecting only a few folders to sync
 ------------------------------------
@@ -427,7 +477,7 @@ Add this to the remote gmail repository section to only sync mails which are in 
 
 To only get the All Mail folder from a Gmail account, you would e.g. do::
 
-    folderfilter = lambda folder: folder.startswith('[Gmail]/All Mail') 
+    folderfilter = lambda folder: folder.startswith('[Gmail]/All Mail')
 
 
 Another nametrans transpose example
@@ -454,25 +504,25 @@ offlineimap.conf::
     ui = ttyui
     pythonfile=~/bin/offlineimap-helpers.py
     socktimeout = 90
-    
+
     [Account acc1]
     localrepository = acc1local
     remoterepository = acc1remote
     autorefresh = 2
-    
+
     [Account acc2]
     localrepository = acc2local
     remoterepository = acc2remote
     autorefresh = 4
-    
+
     [Repository acc1local]
     type = Maildir
     localfolders = ~/Mail/acc1
-    
+
     [Repository acc2local]
     type = Maildir
     localfolders = ~/Mail/acc2
-    
+
     [Repository acc1remote]
     type = IMAP
     remotehost = imap.acc1.com
@@ -484,7 +534,7 @@ offlineimap.conf::
     # Folders to get:
     folderfilter = lambda foldername: foldername in [
                  'INBOX', 'Drafts', 'Sent', 'archiv']
-    
+
     [Repository acc2remote]
     type = IMAP
     remotehost = imap.acc2.net
@@ -522,7 +572,7 @@ Offlineimap handles the renaming correctly in both directions::
             retval = "acc1." + foldername
         retval = re.sub("/", ".", retval)
         return retval
-    
+
     def oimaptransfolder_acc2(foldername):
         if(foldername == "INBOX"):
             retval = "acc2"

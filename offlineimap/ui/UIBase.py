@@ -95,7 +95,7 @@ class UIBase(object):
         # write out more verbose initial info blurb on the log file
         p_ver = ".".join([str(x) for x in sys.version_info[0:3]])
         msg = "OfflineImap %s starting...\n  Python: %s Platform: %s\n  "\
-              "Args: %s" % (offlineimap.__version__, p_ver, sys.platform,
+              "Args: %s" % (offlineimap.__bigversion__, p_ver, sys.platform,
                             " ".join(sys.argv))
         self.logger.info(msg)
 
@@ -124,6 +124,11 @@ class UIBase(object):
         of the sync run when offlineiamp exits. It is recommended to
         always pass in exceptions if possible, so we can give the user
         the best debugging info.
+        
+        We are always pushing tracebacks to the exception queue to
+        make them to be output at the end of the run to allow users
+        pass sensible diagnostics to the developers or to solve
+        problems by themselves.
 
         One example of such a call might be:
 
@@ -135,13 +140,14 @@ class UIBase(object):
         else:
             self._msg("ERROR: %s" % (exc))
 
+        instant_traceback = exc_traceback
         if not self.debuglist:
             # only output tracebacks in debug mode
-            exc_traceback = None
+            instant_traceback = None
         # push exc on the queue for later output
         self.exc_queue.put((msg, exc, exc_traceback))
-        if exc_traceback:
-            self._msg(traceback.format_tb(exc_traceback))
+        if instant_traceback:
+            self._msg(traceback.format_tb(instant_traceback))
 
     def registerthread(self, account):
         """Register current thread as being associated with an account name"""
@@ -245,6 +251,15 @@ class UIBase(object):
             return
         self.warn("Attempted to modify flags for messages %s in folder %s[%s], "
                   "but that folder is read-only.  No flags have been modified "
+                  "for that message." % (
+                str(uidlist), self.getnicename(destfolder), destfolder))
+
+    def labelstoreadonly(self, destfolder, uidlist, labels):
+        if self.config.has_option('general', 'ignore-readonly') and \
+                self.config.getboolean('general', 'ignore-readonly'):
+            return
+        self.warn("Attempted to modify labels for messages %s in folder %s[%s], "
+                  "but that folder is read-only.  No labels have been modified "
                   "for that message." % (
                 str(uidlist), self.getnicename(destfolder), destfolder))
 
@@ -355,6 +370,25 @@ class UIBase(object):
         self.logger.info("Deleting flag %s from %d messages on %s" % (
                 ", ".join(flags), len(uidlist), dest))
 
+    def addinglabels(self, uidlist, label, dest):
+        self.logger.info("Adding label %s to %d messages on %s" % (
+                label, len(uidlist), dest))
+
+    def deletinglabels(self, uidlist, label, dest):
+        self.logger.info("Deleting label %s from %d messages on %s" % (
+                label, len(uidlist), dest))
+
+    def settinglabels(self, uid, num, num_to_set, labels, dest):
+        self.logger.info("Setting labels to message %d on %s (%d of %d): %s" % (
+                uid, dest, num, num_to_set, ", ".join(labels)))
+
+    def collectingdata(self, uidlist, source):
+      if uidlist:
+        self.logger.info("Collecting data from %d messages on %s" % (
+                len(uidlist), source))
+      else:
+        self.logger.info("Collecting data from messages on %s" % source)
+
     def serverdiagnostics(self, repository, type):
         """Connect to repository and output useful information for debugging"""
         conn = None
@@ -375,7 +409,7 @@ class UIBase(object):
                         #TODO: Debug and make below working, it hangs Gmail
                         #res_type, response = conn.id((
                         #    'name', offlineimap.__productname__,
-                        #    'version', offlineimap.__version__))
+                        #    'version', offlineimap.__bigversion__))
                         #self._msg("Server ID: %s %s" % (res_type, response[0]))
                     self._msg("Server welcome string: %s" % str(conn.welcome))
                     self._msg("Server capabilities: %s\n" % str(conn.capabilities))

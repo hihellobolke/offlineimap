@@ -28,13 +28,14 @@ class GmailRepository(IMAPRepository):
     HOSTNAME = "imap.gmail.com"
     # Gmail IMAP server port
     PORT = 993
-    
+
     def __init__(self, reposname, account):
         """Initialize a GmailRepository object."""
         # Enforce SSL usage
         account.getconfig().set('Repository ' + reposname,
                                 'ssl', 'yes')
         IMAPRepository.__init__(self, reposname, account)
+
 
     def gethost(self):
         """Return the server name to connect to.
@@ -71,4 +72,3 @@ class GmailRepository(IMAPRepository):
     def getspamfolder(self):
         #: Gmail also deletes messages upon EXPUNGE in the Spam folder
         return  self.getconf('spamfolder','[Gmail]/Spam')
-
